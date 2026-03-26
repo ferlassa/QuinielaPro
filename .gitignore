@@ -1,0 +1,20 @@
+# Quiniela Predictor Pro — .gitignore
+# ── backend ──────────────────────────────────────────────────────────────
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/*.db
+backend/.env
+backend/apuesta*.qui
+backend/apuesta*.txt
+backend/ultima_apuesta.qui
+
+# ── frontend ─────────────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# ── general ──────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+*.egg-info/

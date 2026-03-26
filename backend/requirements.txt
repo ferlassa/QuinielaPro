@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+scikit-learn
+statsmodels
+scipy
+pandas
+numpy
+sqlalchemy
+psycopg2-binary
+playwright
+beautifulsoup4
+httpx
+pydantic
