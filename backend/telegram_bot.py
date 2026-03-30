@@ -24,14 +24,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == 'predict':
         try:
-            from main import ml
-            probs = ml.predict_match(1500, 1500, 1.2, 0.9)
-            p1 = round(probs["1"] * 100, 1)
-            px = round(probs["X"] * 100, 1)
-            p2 = round(probs["2"] * 100, 1)
-            best_sign = max(probs, key=probs.get)
+            from main import ml, SessionLocal
+            from models import Match
             
-            info = f"📊 <b>Predicción Media (Equipos Equilibrados)</b>\n\n1: {p1}%\nX: {px}%\n2: {p2}%\n\n<i>Signo más probable: {best_sign}</i>"
+            db = SessionLocal()
+            matches = db.query(Match).order_by(Match.id.desc()).limit(14).all()
+            db.close()
+            matches.reverse()
+            
+            if not matches:
+                await query.edit_message_text(text="No hay partidos en la base de datos.")
+                return
+
+            info_lines = ["📊 <b>Pronóstico de la Jornada (14 Partidos)</b>\n"]
+            for i, m in enumerate(matches, 1):
+                probs = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
+                p1 = round(probs["1"] * 100, 1)
+                px = round(probs["X"] * 100, 1)
+                p2 = round(probs["2"] * 100, 1)
+                best_sign = max(probs, key=probs.get)
+                
+                home = m.home_team[:12] if m.home_team else f"Local {i}"
+                away = m.away_team[:12] if m.away_team else f"Visitante {i}"
+                
+                line = f"{i}. {home} - {away} ➡️ <b>{best_sign}</b> ({p1}%-{px}%-{p2}%)"
+                info_lines.append(line)
+            
+            info = "\n".join(info_lines)
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error obteniendo datos: {e}")
@@ -47,9 +66,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             roi_60 = round(r60.get("roi_%", 0), 1) if isinstance(r60, dict) else 0
             
             # Simulated Kelly for a 51% probability match at 2.0 odds
-            kc = kelly_criterion(prob_win=0.51, odds=2.0, bankroll=100.0)
+            kc_dict = kelly_criterion(prob_win=0.51, decimal_odds=2.0, bankroll=100.0)
+            kc = kc_dict.get("apuesta_euros", 0)
             
-            info = f"💰 <b>Estado Financiero Actual</b>\n\n📈 <b>ROI (10 J):</b> {roi_10}%\n📈 <b>ROI (60 J):</b> {roi_60}%\n\n💎 <b>Kelly Apuesta sugerida:</b> {round(kc, 2)}€ (Moderado)"
+            info = f"💰 <b>Estado Financiero Actual</b>\n\n📈 <b>ROI (10 J):</b> {roi_10}%\n📈 <b>ROI (60 J):</b> {roi_60}%\n\n💎 <b>Kelly Apuesta sugerida:</b> {kc}€ (Moderado)"
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error financiero: {e}")
