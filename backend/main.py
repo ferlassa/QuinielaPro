@@ -8,10 +8,13 @@ Endpoints RESTful que conectan todos los módulos:
   - /jornadas         → Lecturas de la BD
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import asyncio
+from telegram import Update
+from telegram_bot import bot_app, init_telegram_webhook, stop_telegram_webhook
 from typing import List, Optional
 import random
 import json
@@ -63,6 +66,18 @@ def health():
 def root():
     return {"status": "ok", "message": "Quiniela Predictor Pro API v1.0"}
 
+@app.post("/telegram", tags=["Telegram"])
+async def telegram_webhook(request: Request):
+    """Integración oficial del Bot de Telegram via Webhook."""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, bot_app.bot)
+        await bot_app.process_update(update)
+        return Response(status_code=200)
+    except Exception as e:
+        print(f"Error procesando el webhook de Telegram: {e}")
+        return Response(status_code=500)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -81,7 +96,7 @@ app.add_middleware(
 ml = MLEngine()
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     """Arranca el servidor instantáneamente y lanza tareas en segundo plano."""
 
     def background_init():
@@ -99,6 +114,14 @@ def startup_event():
 
     t = threading.Thread(target=background_init, daemon=True)
     t.start()
+    
+    # Arrancar Telegram asíncronamente en el background
+    asyncio.create_task(init_telegram_webhook())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Detiene la aplicación asíncrona de Telegram."""
+    await stop_telegram_webhook()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
