@@ -66,23 +66,22 @@ app.add_middleware(
 ml = MLEngine()
 
 @app.on_event("startup")
-async def startup_event(background_tasks: BackgroundTasks):
-    """Entrena el modelo e inicializa datos en segundo plano."""
-    # Intentar carga de datos inicial si la BD está vacía
-    print("Iniciando carga de datos/entrenamiento en segundo plano...")
-    
+async def startup_event():
+    """Arranca el servidor instantáneamente y lanza tareas en segundo plano."""
+
     async def initial_setup():
         try:
             await init_data()
             print("Datos inicializados. Entrenando modelo...")
+        except Exception as e:
+            print(f"Carga de datos omitida (puede que ya existan): {e}")
+        try:
             ml.train()
             print("Motor ML listo.")
         except Exception as e:
-            print(f"Error en carga inicial: {e}")
-            # Si falla (ej. ya hay datos), al menos entrenar
-            ml.train()
+            print(f"Entrenamiento ML omitido (sin datos aún): {e}")
 
-    # Ejecutar sin bloquear el healthcheck
+    # No bloqueamos el arranque, el healthcheck responde de inmediato
     asyncio.create_task(initial_setup())
 
 
