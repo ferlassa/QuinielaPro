@@ -19,5 +19,5 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run with Uvicorn (production mode, 2 workers)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Run with Uvicorn — shell form so Railway's $PORT is expanded
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
