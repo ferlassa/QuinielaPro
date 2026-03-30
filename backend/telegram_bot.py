@@ -12,7 +12,8 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🌍 Dashboard Principal", callback_data='dashboard')],
         [InlineKeyboardButton("📊 Predicción 1X2", callback_data='predict')],
-        [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')]
+        [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')],
+        [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     msg = "¡Bienvenido a <b>Quiniela Predictor Pro</b>! 🤖⚽\n\n¿Qué información necesitas hoy?"
@@ -114,6 +115,45 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error cargando dashboard: {e}")
+            
+    elif query.data == 'evolution':
+        try:
+            from main import ml, calcular_roi, SessionLocal
+            from models import Match
+            
+            # 1. Aprender (Reentrenar modelo on-demand)
+            await query.edit_message_text(text="🧠 <i>Re-entrenando la red neuronal con los últimos resultados de la BD...</i>", parse_mode="HTML")
+            
+            db = SessionLocal()
+            total_matches = db.query(Match).count()
+            db.close()
+            
+            # Forzamos el entrenamiento para incorporar los partidos más recientes
+            ml.train()
+            
+            # 2. Obtener Histórico de Aciertos
+            r1 = calcular_roi(1)
+            r10 = calcular_roi(10)
+            r60 = calcular_roi(60)
+            
+            aciertos_1 = r1.get("aciertos_medios", 0) if isinstance(r1, dict) else 0
+            aciertos_10 = r10.get("aciertos_medios", 0) if isinstance(r10, dict) else 0
+            aciertos_60 = r60.get("aciertos_medios", 0) if isinstance(r60, dict) else 0
+            
+            info = (
+                "🧠 <b>EVOLUCIÓN DEL MODELO</b>\n"
+                "----------------------------------\n"
+                f"✅ <b>Aprendizaje:</b> Completado sobre {total_matches} partidos históricos.\n"
+                "El modelo de Machine Learning y el PCA han sido actualizados.\n\n"
+                "🎯 <b>Rendimiento (Aciertos Reales):</b>\n"
+                f"• Última Jornada Simulada: <b>{aciertos_1}/14</b> aciertos\n"
+                f"• Media de Aciertos (10 J): <b>{aciertos_10}/14</b> aciertos\n"
+                f"• Media de Aciertos (60 J): <b>{aciertos_60}/14</b> aciertos\n\n"
+                "<i>Nota: El modelo seguirá evolucionando conforme se añadan resultados reales a la Base de Datos.</i>"
+            )
+            await query.edit_message_text(text=info, parse_mode="HTML")
+        except Exception as e:
+            await query.edit_message_text(text=f"Error en el ciclo de aprendizaje: {e}")
 
 bot_app.add_handler(CommandHandler('start', start_cmd))
 bot_app.add_handler(CallbackQueryHandler(button_handler))
