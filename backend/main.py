@@ -8,14 +8,14 @@ Endpoints RESTful que conectan todos los módulos:
   - /jornadas         → Lecturas de la BD
 """
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import random
 import json
-import asyncio
+import threading
 from scraper import init_data
 
 # Local modules
@@ -66,23 +66,24 @@ app.add_middleware(
 ml = MLEngine()
 
 @app.on_event("startup")
-async def startup_event():
+def startup_event():
     """Arranca el servidor instantáneamente y lanza tareas en segundo plano."""
 
-    async def initial_setup():
+    def background_init():
+        import asyncio as _aio
         try:
-            await init_data()
-            print("Datos inicializados. Entrenando modelo...")
+            _aio.run(init_data())
+            print("BD inicializada.")
         except Exception as e:
-            print(f"Carga de datos omitida (puede que ya existan): {e}")
+            print(f"Carga de datos omitida: {e}")
         try:
             ml.train()
             print("Motor ML listo.")
         except Exception as e:
             print(f"Entrenamiento ML omitido (sin datos aún): {e}")
 
-    # No bloqueamos el arranque, el healthcheck responde de inmediato
-    asyncio.create_task(initial_setup())
+    t = threading.Thread(target=background_init, daemon=True)
+    t.start()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
