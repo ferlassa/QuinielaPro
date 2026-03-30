@@ -54,9 +54,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# HEALTHCHECK FIRST: Responder inmediatamente para pasar el despliegue de Railway
+@app.get("/health", tags=["Info"])
+def health():
+    return {"status": "ok"}
+
+@app.get("/", tags=["Info"])
+def root():
+    return {"status": "ok", "message": "Quiniela Predictor Pro API v1.0"}
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:5173"],
+    allow_origins=[FRONTEND_URL, "http://localhost:5173", "healthcheck.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -122,14 +131,7 @@ class KellyRequest(BaseModel):
 # ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.get("/", tags=["Info"])
-def root():
-    return {"status": "ok", "message": "Quiniela Predictor Pro API v1.0"}
-
-
-@app.get("/health", tags=["Info"])
-def health():
-    return {"status": "ok"}
+# Endpoints de salud movidos al inicio
 
 
 @app.post("/predict", tags=["Motor ML"])

@@ -16,5 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . .
 
-# Run with Uvicorn — shell form for PORT expansion
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+# Configuración final para Railway: usar shell para expandir $PORT
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --log-level info
