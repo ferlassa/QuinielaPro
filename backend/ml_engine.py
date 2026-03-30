@@ -19,7 +19,7 @@ class MLEngine:
     def __init__(self, n_components=0.75):
         self.pca = PCA(n_components=n_components)
         self.scaler = StandardScaler()
-        self.model_1x2 = LogisticRegression(multi_class='multinomial', max_iter=1000)
+        self.model_1x2 = LogisticRegression(max_iter=1000)
         
     def load_training_data(self):
         db = SessionLocal()
