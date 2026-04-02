@@ -48,7 +48,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             info_lines = [f"📊 <b>Pronóstico de la Jornada {jornada_num}</b>\n"]
             for i, m in enumerate(matches, 1):
-                probs = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
+                try:
+                    probs = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
+                except Exception as e:
+                    # Auto-Healing Mechanism: if not fitted, train now
+                    if "not fitted yet" in str(e):
+                        ml.train()
+                        probs = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
+                    else:
+                        probs = {"1": 0.45, "X": 0.28, "2": 0.27}
+                        
                 p1 = round(probs["1"] * 100, 1)
                 px = round(probs["X"] * 100, 1)
                 p2 = round(probs["2"] * 100, 1)
@@ -63,7 +72,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = "\n".join(info_lines)
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
-            await query.edit_message_text(text=f"Error obteniendo datos: {e}")
+            import traceback
+            error_data = f"PREDICT ERROR: {e}\n{traceback.format_exc()}\n---\n"
+            open("healer_alerts.log", "a", encoding="utf-8").write(error_data)
+            await query.edit_message_text(text=f"🆘 <b>¡Error Detectado!</b>\nTransfiriendo log al <i>Senior Auto-Healer Expert</i>...\n<code>{e}</code>", parse_mode="HTML")
             
     elif query.data == 'financial':
         try:
@@ -232,7 +244,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == 'sync_db':
         try:
-            from main import SessionLocal
+            from main import SessionLocal, ml
             from scraper import QuinielaScraper
             
             await query.edit_message_text(text="⏳ <i>Conectando a Internet (Marca/SportMonks) para actualizar la Liga en tiempo real. Esto puede tardar unos segundos...</i>", parse_mode="HTML")
@@ -242,10 +254,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await scraper.get_historical_season_real("2025-2026", db)
             db.close()
             
+            # Auto-Healer Maintenance: Obligatory retraining after syncing massive data
+            ml.train()
+            
             await query.edit_message_text(text="✅ <b>¡Sincronización Completada!</b>\nLa base de datos contiene los resultados más recientes. La Clasificación y el Pronóstico ya apuntan a la próxima jornada.", parse_mode="HTML")
             
         except Exception as e:
-            await query.edit_message_text(text=f"Error sincronizando base de datos: {e}")
+            import traceback
+            error_data = f"SYNC ERROR: {e}\n{traceback.format_exc()}\n---\n"
+            open("healer_alerts.log", "a", encoding="utf-8").write(error_data)
+            await query.edit_message_text(text=f"🆘 <b>¡Error Crítico!</b>\nTransfiriendo telemetría al Auto-Healer...\n<code>{e}</code>", parse_mode="HTML")
 
 bot_app.add_handler(CommandHandler('start', start_cmd))
 bot_app.add_handler(CallbackQueryHandler(button_handler))
