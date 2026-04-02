@@ -11,6 +11,7 @@ bot_app = Application.builder().token(TELEGRAM_TOKEN).build()
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🌍 Dashboard Principal", callback_data='dashboard')],
+        [InlineKeyboardButton("🏆 Clasificación y Forma (8J)", callback_data='classification')],
         [InlineKeyboardButton("📊 Predicción 1X2", callback_data='predict')],
         [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')],
         [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')]
@@ -115,6 +116,73 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error cargando dashboard: {e}")
+
+    elif query.data == 'classification':
+        try:
+            from main import SessionLocal
+            from models import Match, Jornada
+            
+            db = SessionLocal()
+            # Fetch matches ordered chronologically
+            matches = db.query(Match).join(Jornada).order_by(Match.jornada_id.asc(), Match.id.asc()).all()
+            db.close()
+            
+            if not matches:
+                await query.edit_message_text(text="No hay datos de partidos suficientes para la clasificación.")
+                return
+
+            teams = {}
+            for m in matches:
+                if m.home_goals is not None and m.away_goals is not None:
+                    for team in [m.home_team, m.away_team]:
+                        if team not in teams:
+                            teams[team] = {'P': 0, 'W': 0, 'D': 0, 'L': 0, 'GF': 0, 'GA': 0, 'Pts': 0, 'form': []}
+                    
+                    teams[m.home_team]['P'] += 1
+                    teams[m.home_team]['GF'] += m.home_goals
+                    teams[m.home_team]['GA'] += m.away_goals
+                    
+                    teams[m.away_team]['P'] += 1
+                    teams[m.away_team]['GF'] += m.away_goals
+                    teams[m.away_team]['GA'] += m.home_goals
+                    
+                    if m.home_goals > m.away_goals:
+                        teams[m.home_team]['W'] += 1
+                        teams[m.home_team]['Pts'] += 3
+                        teams[m.home_team]['form'].append('✅')
+                        teams[m.away_team]['L'] += 1
+                        teams[m.away_team]['form'].append('❌')
+                    elif m.home_goals < m.away_goals:
+                        teams[m.away_team]['W'] += 1
+                        teams[m.away_team]['Pts'] += 3
+                        teams[m.away_team]['form'].append('✅')
+                        teams[m.home_team]['L'] += 1
+                        teams[m.home_team]['form'].append('❌')
+                    else:
+                        teams[m.home_team]['D'] += 1
+                        teams[m.home_team]['Pts'] += 1
+                        teams[m.home_team]['form'].append('➖')
+                        teams[m.away_team]['D'] += 1
+                        teams[m.away_team]['Pts'] += 1
+                        teams[m.away_team]['form'].append('➖')
+
+            sorted_teams = sorted(teams.items(), key=lambda x: (x[1]['Pts'], x[1]['GF'] - x[1]['GA'], x[1]['GF']), reverse=True)
+            
+            lines = ["🏆 <b>Clasificación y Forma</b>\n"]
+            for i, (name, stats) in enumerate(sorted_teams[:20], 1):
+                form_8 = "".join(stats['form'][-8:])
+                gd = stats['GF'] - stats['GA']
+                sign_gd = f"+{gd}" if gd > 0 else str(gd)
+                
+                # Format: 1. Barcelona | 73pts | +50 (29J)
+                lines.append(f"<b>{i}. {name[:12]}</b> | {stats['Pts']}pts | {sign_gd} ({stats['P']}J)")
+                lines.append(f"└ {form_8}")
+                
+            info = "\n".join(lines)
+            await query.edit_message_text(text=info[:4096], parse_mode="HTML")
+            
+        except Exception as e:
+            await query.edit_message_text(text=f"Error obteniendo clasificación: {e}")
             
     elif query.data == 'evolution':
         try:
