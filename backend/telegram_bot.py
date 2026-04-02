@@ -13,6 +13,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🌍 Dashboard Principal", callback_data='dashboard')],
         [InlineKeyboardButton("🏆 Clasificación y Forma (8J)", callback_data='classification')],
         [InlineKeyboardButton("📊 Predicción 1X2", callback_data='predict')],
+        [InlineKeyboardButton("🔄 Sincronizar Resultados", callback_data='sync_db')],
         [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')],
         [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')]
     ]
@@ -228,6 +229,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=info, parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error en el ciclo de aprendizaje: {e}")
+
+    elif query.data == 'sync_db':
+        try:
+            from main import SessionLocal
+            from scraper import QuinielaScraper
+            
+            await query.edit_message_text(text="⏳ <i>Conectando a Internet (Marca/SportMonks) para actualizar la Liga en tiempo real. Esto puede tardar unos segundos...</i>", parse_mode="HTML")
+            
+            scraper = QuinielaScraper(api_token="gbyw2CyWtND2QnrfUDtmdHi3i2iC5umjOp52JXF8oNiZwf835sOyBeKikTKu")
+            db = SessionLocal()
+            await scraper.get_historical_season_real("2025-2026", db)
+            db.close()
+            
+            await query.edit_message_text(text="✅ <b>¡Sincronización Completada!</b>\nLa base de datos contiene los resultados más recientes. La Clasificación y el Pronóstico ya apuntan a la próxima jornada.", parse_mode="HTML")
+            
+        except Exception as e:
+            await query.edit_message_text(text=f"Error sincronizando base de datos: {e}")
 
 bot_app.add_handler(CommandHandler('start', start_cmd))
 bot_app.add_handler(CallbackQueryHandler(button_handler))
