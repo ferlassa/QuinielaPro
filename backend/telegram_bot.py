@@ -31,15 +31,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from models import Match
             
             db = SessionLocal()
-            matches = db.query(Match).order_by(Match.id.desc()).limit(14).all()
+            # Find the very first upcoming match (whose scores are Null/None)
+            first_upcoming_match = db.query(Match).filter(Match.home_goals == None).order_by(Match.id.asc()).first()
+            if first_upcoming_match:
+                matches = db.query(Match).filter(Match.jornada_id == first_upcoming_match.jornada_id).all()
+                jornada_num = first_upcoming_match.jornada.number
+            else:
+                matches = []
+                jornada_num = "?"
             db.close()
-            matches.reverse()
             
             if not matches:
-                await query.edit_message_text(text="No hay partidos en la base de datos.")
+                await query.edit_message_text(text="No quedan jornadas por predecir en la base de datos.")
                 return
 
-            info_lines = ["📊 <b>Pronóstico de la Jornada (14 Partidos)</b>\n"]
+            info_lines = [f"📊 <b>Pronóstico de la Jornada {jornada_num}</b>\n"]
             for i, m in enumerate(matches, 1):
                 probs = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
                 p1 = round(probs["1"] * 100, 1)
