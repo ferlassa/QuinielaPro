@@ -119,18 +119,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from main import SessionLocal
             from models import Match, Jornada
             db = SessionLocal()
-            matches = db.query(Match).join(Jornada).filter(Match.home_goals != None).all()
+            # Filtrar solo Primera División (564) que tengan goles anotados
+            matches = db.query(Match).join(Jornada).filter(Match.league_id == 564, Match.home_goals != None).all()
             stats = {}
             for m in matches:
                 for t in [m.home_team, m.away_team]:
                     if t not in stats: stats[t] = {"pts":0, "f":[]}
-                if m.home_goals > m.away_goals: stats[m.home_team]["pts"]+=3; stats[m.home_team]["f"].append("✅"); stats[m.away_team]["f"].append("❌")
-                elif m.away_goals > m.home_goals: stats[m.away_team]["pts"]+=3; stats[m.away_team]["f"].append("✅"); stats[m.home_team]["f"].append("❌")
-                else: stats[m.home_team]["pts"]+=1; stats[m.away_team]["pts"]+=1; stats[m.home_team]["f"].append("➖"); stats[m.away_team]["f"].append("➖")
+                if m.home_goals > m.away_goals: 
+                    stats[m.home_team]["pts"]+=3; stats[m.home_team]["f"].append("✅"); stats[m.away_team]["f"].append("❌")
+                elif m.away_goals > m.home_goals: 
+                    stats[m.away_team]["pts"]+=3; stats[m.away_team]["f"].append("✅"); stats[m.home_team]["f"].append("❌")
+                else: 
+                    stats[m.home_team]["pts"]+=1; stats[m.away_team]["pts"]+=1; stats[m.home_team]["f"].append("➖"); stats[m.away_team]["f"].append("➖")
             db.close()
             ranking = sorted(stats.items(), key=lambda x: x[1]["pts"], reverse=True)
-            res = [f"🏆 <b>Top 10 Liga Real</b>\n"]
-            for i, (name, s) in enumerate(ranking[:10], 1):
+            res = [f"🏆 <b>Clasificación Primera División</b>\n"]
+            for i, (name, s) in enumerate(ranking[:20], 1):
                 res.append(f"{i}. {name[:12]}: {s['pts']} pts [{' '.join(s['f'][-5:])}]")
             await query.edit_message_text(text="\n".join(res), reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
