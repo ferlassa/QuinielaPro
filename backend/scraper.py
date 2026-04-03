@@ -14,6 +14,20 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def fix_db_schema():
+    """Añade la columna league_id si no existe (Hotfix para PostgreSQL en Railway)"""
+    from sqlalchemy import text
+    db = SessionLocal()
+    try:
+        db.execute(text("ALTER TABLE matches ADD COLUMN league_id INTEGER"))
+        db.commit()
+        print("Migración: Columna 'league_id' añadida.")
+    except Exception as e:
+        db.rollback()
+        print(f"Migración: Columna ya existe o error controlado: {e}")
+    finally:
+        db.close()
+
 class QuinielaScraper:
     def __init__(self, api_token: str):
         self.api_token = api_token
@@ -106,6 +120,7 @@ class QuinielaScraper:
         print(f"Temporada {season_year} cargada con éxito ({real_matches_added} partidos reales).")
 
 async def init_data():
+    fix_db_schema() # Ejecutar migración antes de nada
     scraper = QuinielaScraper(api_token="gbyw2CyWtND2QnrfUDtmdHi3i2iC5umjOp52JXF8oNiZwf835sOyBeKikTKu")
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
