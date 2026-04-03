@@ -36,6 +36,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔄 Sincronizar Resultados", callback_data='sync_db')],
         [InlineKeyboardButton("🛠️ Centro de Diagnóstico", callback_data='health_check')],
         [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')],
+        [InlineKeyboardButton("🎯 Optimizar Apuesta (PRO)", callback_data='optimize')],
         [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -188,6 +189,75 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             tb = traceback.format_exc()
             await query.edit_message_text(text=f"🆘 <b>Error Crítico:</b> {e}\n<pre>{tb[-500:]}</pre>", reply_markup=get_nav_keyboard(), parse_mode="HTML")
+
+    # --- 7. OPTIMIZADOR DE APUESTAS ---
+    elif query.data == 'optimize':
+        try:
+            from main import ml, SessionLocal
+            from models import Match, Jornada
+            from optimizer import propose_strategies
+            db = SessionLocal()
+            matches = db.query(Match).join(Jornada).filter(Match.home_goals == None).order_by(Match.id.asc()).limit(15).all()
+            db.close()
+
+            if not matches:
+                await query.edit_message_text(text="❌ No hay jornada activa para optimizar.", reply_markup=get_nav_keyboard())
+                return
+
+            preds = []
+            for m in matches:
+                p = ml.predict_match(m.elo_home, m.elo_away, m.xg_home, m.xg_away)
+                p['home'] = m.home_team
+                p['away'] = m.away_team
+                preds.append(p)
+
+            strategies = propose_strategies(preds)
+            msg = "🎯 <b>Optimizador Quini PRO</b>\n\nElige una estrategia basada en la jornada actual:\n\n"
+            keyboard = []
+            for s in strategies:
+                msg += f"<b>{s['name']}</b>: {s['desc']}\nCoste: {s['cost']}€\n\n"
+                keyboard.append([InlineKeyboardButton(f"Elegir {s['name']}", callback_data=f"strat_{s['id']}")])
+            
+            keyboard.append([InlineKeyboardButton("🔙 Volver al Menú", callback_data='main_menu')])
+            await query.edit_message_text(text=msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        except Exception as e:
+            await query.edit_message_text(text=f"Error Optimizador: {e}", reply_markup=get_nav_keyboard())
+
+    elif query.data.startswith('strat_'):
+        try:
+            from main import ml, SessionLocal
+            from models import Match, Jornada
+            from optimizer import propose_strategies, export_columns
+            strat_id = int(query.data.split('_')[1])
+            
+            db = SessionLocal()
+            matches = db.query(Match).join(Jornada).filter(Match.home_goals == None).order_by(Match.id.asc()).limit(15).all()
+            db.close()
+
+            preds = []
+            for m in matches:
+                p = ml.predict_match(m.elo_home, m.elo_away, m.xg_home, m.xg_away)
+                p['home'] = m.home_team
+                p['away'] = m.away_team
+                preds.append(p)
+
+            strategies = propose_strategies(preds)
+            chosen = next(s for s in strategies if s['id'] == strat_id)
+            
+            # P15 Predicción
+            p15_res = ml.predict_poisson_p15(matches[14].xg_home, matches[14].xg_away) if len(matches) > 14 else "1-1"
+            
+            filename = f"quiniela_{chosen['id']}.qui"
+            export_columns(chosen['cols'], p15=p15_res, filepath=filename)
+            
+            await context.bot.send_document(
+                chat_id=query.message.chat_id,
+                document=open(filename, 'rb'),
+                caption=f"✅ <b>Apuesta Optimizada Generada</b>\nEstrategia: {chosen['name']}\nColumnas: {len(chosen['cols'])}\nCierre P15: {p15_res}\n\nEnvía este archivo a tu administración local.",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            await query.edit_message_text(text=f"Error Export: {e}", reply_markup=get_nav_keyboard())
 
     elif query.data == 'main_menu':
         await start_cmd(update, context)

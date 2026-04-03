@@ -174,18 +174,51 @@ def reduce_by_hamming(
 # EXPORTACIÓN
 # ─────────────────────────────────────────────────────────────────────────────
 
-def export_columns(columns: List[List[str]], filepath: str = "apuesta.qui") -> str:
+def export_columns(columns: List[List[str]], p15: str = "1-1", filepath: str = "apuesta.qui") -> str:
     """
-    Exporta las columnas en formato compatible con validadores online (.qui/.txt).
-    Formato: una columna por línea, signos separados por espacios.
-    Ejemplo: 1 X 2 1 1 X 2 1 1 X 1 1 2 X
+    Exporta las columnas en formato compatible con validadores oficiales.
+    Añade el Pleno al 15 al final de cada columna.
     """
-    lines = [" ".join(col) for col in columns]
+    # Formato P15 oficial: 0, 1, 2, M
+    # Si recibimos "1-1" -> 1 1
+    # Si recibimos "M-0" -> M 0
+    p15_parts = p15.replace("-", " ").split()
+    p15_str = "".join(p15_parts) if len(p15_parts) == 2 else "11"
+
+    lines = []
+    for col in columns:
+        # 14 signos + 2 del P15
+        lines.append("".join(col) + p15_str)
+    
     content = "\n".join(lines)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)
-    print(f"[Export] {len(columns)} columnas guardadas en: {filepath}")
+    print(f"[Export] {len(columns)} apuestas guardadas en: {filepath}")
     return content
+
+def propose_strategies(predictions: List[dict]):
+    """
+    Analiza predicciones y propone 3 estrategias (R1, R2, R6).
+    """
+    def get_ordered_signs(p):
+        return sorted(['1', 'X', '2'], key=lambda s: p.get(s, 0), reverse=True)
+
+    ordered_preds = []
+    for p in predictions[:14]:
+        ordered_preds.append((f"{p['home']}-{p['away']}", get_ordered_signs(p)))
+
+    # R6: 6 Dobles (64 apuestas) -> 32€
+    cols_r6 = generate_columns_from_reduction(ordered_preds, "R6")
+    # R2: 3 Triples + 2 Dobles (108 apuestas) -> 54€
+    cols_r2 = generate_columns_from_reduction(ordered_preds, "R2")
+    # R1: 4 Triples (81 apuestas) -> 40.5€
+    cols_r1 = generate_columns_from_reduction(ordered_preds, "R1")
+
+    return [
+        {"id": 1, "name": "🛡️ Conservadora (R6)", "desc": "6 Dobles. Ideal para asegurar premios menores.", "cost": 32.0, "cols": cols_r6},
+        {"id": 2, "name": "⚖️ Equilibrada (R2)", "desc": "3 Triples + 2 Dobles. Balance entre coste y riesgo.", "cost": 54.0, "cols": cols_r2},
+        {"id": 3, "name": "🔥 Agresiva (R1)", "desc": "4 Triples. Máxima cobertura ante sorpresas.", "cost": 40.5, "cols": cols_r1}
+    ]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,27 +227,20 @@ def export_columns(columns: List[List[str]], filepath: str = "apuesta.qui") -> s
 
 if __name__ == "__main__":
     import random
-
-    signos = ["1", "X", "2"]
-
-    # Simular salida del motor ML: 14 partidos con probabilidades ordenadas
+    
+    # Simular salida del motor ML: 15 partidos
     predictions_demo = []
-    for i in range(14):
-        ordered = random.sample(signos, k=3)   # orden 1º, 2º, 3º más probable
-        predictions_demo.append((f"Partido_{i+1}", ordered))
+    for i in range(15):
+        predictions_demo.append({
+            "home": f"Local_{i+1}", 
+            "away": f"Visitante_{i+1}",
+            "1": 0.4, "X": 0.3, "2": 0.3
+        })
 
-    # 1. Generar reducción R1
-    columns_r1 = generate_columns_from_reduction(predictions_demo, "R1")
-
-    # 2. Filtrar con Megaquin
-    mf = MegaquinFilter(max_variantes_x2=12, min_sign1=1, max_racha_mismo_signo=6, max_interrupciones=14)
-    filtered = mf.filtrar(columns_r1)
-
-    # 3. Diversificar por Hamming
-    diversas = reduce_by_hamming(filtered, min_distance=2, target_columns=12)
-
-    # 4. Exportar
-    export_columns(diversas, "apuesta_R1_megaquin.qui")
-    print("\nEjemplo de columna generada:")
-    if diversas:
-        print(" ".join(diversas[0]))
+    # 1. Probar estrategias
+    strats = propose_strategies(predictions_demo)
+    for s in strats:
+        print(f"Estrategia: {s['name']} - Coste: {s['cost']}€")
+        # 2. Exportar primera estrategia como prueba
+        if s['id'] == 1:
+            export_columns(s['cols'], p15="M-1", filepath="demo_bet.qui")
