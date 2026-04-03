@@ -31,7 +31,7 @@ def get_nav_keyboard():
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mando principal del bot con teclado premium."""
     keyboard = [
-        [InlineKeyboardButton("🏆 Clasificación y Forma (8J)", callback_data='classification')],
+        [InlineKeyboardButton("🏆 Clasificación y Forma (EA Sports)", callback_data='classification')],
         [InlineKeyboardButton("📊 Predicción 1X2", callback_data='predict')],
         [InlineKeyboardButton("🔄 Sincronizar Resultados", callback_data='sync_db')],
         [InlineKeyboardButton("🛠️ Centro de Diagnóstico", callback_data='health_check')],
@@ -40,13 +40,16 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
+    text = (
         "⚽ <b>Quiniela Predictor Pro v2.0</b>\n"
         "<i>Datos Reales | IA Auto-Heal | Kelly Criterion</i>\n\n"
-        "Selecciona una opción para comenzar:",
-        reply_markup=reply_markup,
-        parse_mode="HTML"
+        "Selecciona una opción para comenzar:"
     )
+    
+    if update.callback_query:
+        await update.callback_query.message.edit_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+    else:
+        await update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
