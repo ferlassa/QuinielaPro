@@ -4,8 +4,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # Configuración básica
-TELEGRAM_TOKEN = "7544090782:AAEnm6n6_u6e6e6e6e6e6e6e6e6e6e6e6e6" # Placeholder, user has theirs
-WEBHOOK_URL = "https://quiniela-predictor-pro-production.up.railway.app/webhook"
+# Token y Webhook (Priorizar variables de entorno)
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8694335308:AAGDakUTsgGh1WZ21TaLeJKHQ4I9cdfhCTA")
+WEBHOOK_URL = "https://quinielapro-production.up.railway.app/telegram"
 
 bot_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
