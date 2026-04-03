@@ -101,7 +101,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             import traceback
             open("healer_alerts.log", "a", encoding="utf-8").write(f"PREDICT ERROR: {e}\n{traceback.format_exc()}\n")
-            await query.edit_message_text(text=f"🆘 Error Healer: {e}")
+            await query.edit_message_text(text=f"🆘 Error Healer: {e}", reply_markup=get_nav_keyboard())
 
     # --- 2. FINANZAS Y ROI ---
     elif query.data == 'financial':
@@ -111,7 +111,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             roi = round(r10.get("roi_%", 0), 1) if isinstance(r10, dict) else 0
             await query.edit_message_text(text=f"💰 <b>ROI Actual (10J):</b> {roi}%", reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
-            await query.edit_message_text(text=f"Error finanzas: {e}")
+            await query.edit_message_text(text=f"Error finanzas: {e}", reply_markup=get_nav_keyboard())
 
     # --- 3. CLASIFICACIÓN REAL ---
     elif query.data == 'classification':
@@ -134,7 +134,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 res.append(f"{i}. {name[:12]}: {s['pts']} pts [{' '.join(s['f'][-5:])}]")
             await query.edit_message_text(text="\n".join(res), reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
-            await query.edit_message_text(text=f"Error tabla: {e}")
+            await query.edit_message_text(text=f"Error tabla: {e}", reply_markup=get_nav_keyboard())
 
     # --- 4. SINCRONIZACIÓN MANUAL ---
     elif query.data == 'sync_db':
@@ -152,7 +152,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             import traceback
             open("healer_alerts.log", "a", encoding="utf-8").write(f"SYNC ERROR: {e}\n{traceback.format_exc()}\n")
-            await query.edit_message_text(text=f"🆘 Error Sync: {e}")
+            await query.edit_message_text(text=f"🆘 Error Sync: {e}", reply_markup=get_nav_keyboard())
 
     # --- 5. CENTRO DE DIAGNÓSTICO (AUTO-HEALER) ---
     elif query.data == 'health_check':
@@ -171,7 +171,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += "ML: 🛠️ RE-ENTRENADO"
             await query.edit_message_text(text=msg, reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
-            await query.edit_message_text(text=f"Error Salud: {e}")
+            await query.edit_message_text(text=f"Error Salud: {e}", reply_markup=get_nav_keyboard())
 
     # --- 6. EVOLUCIÓN ---
     elif query.data == 'evolution':
@@ -183,7 +183,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text="✅ <b>Motor IA Optimizado</b>", reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             tb = traceback.format_exc()
-            await query.edit_message_text(text=f"🆘 <b>Error Crítico:</b> {e}\n<pre>{tb[-500:]}</pre>", parse_mode="HTML")
+            await query.edit_message_text(text=f"🆘 <b>Error Crítico:</b> {e}\n<pre>{tb[-500:]}</pre>", reply_markup=get_nav_keyboard(), parse_mode="HTML")
 
     elif query.data == 'main_menu':
         await start_cmd(update, context)
