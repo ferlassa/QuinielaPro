@@ -59,17 +59,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db = SessionLocal()
             first = db.query(Match).filter(Match.home_goals == None).order_by(Match.id.asc()).first()
             if first:
-                matches = db.query(Match).filter(Match.jornada_id == first.jornada_id).all()
+                # 10 de Primera (564) y 5 de Segunda (384) para sumar los 15 de la Quini
+                matches_p1 = db.query(Match).filter(Match.jornada_id == first.jornada_id, Match.league_id == 564).limit(10).all()
+                matches_p2 = db.query(Match).filter(Match.jornada_id == first.jornada_id, Match.league_id == 384).limit(5).all()
+                matches = matches_p1 + matches_p2
                 j_num = first.jornada.number
             else:
                 matches, j_num = [], "?"
             db.close()
             
             if not matches:
-                await query.edit_message_text(text="No quedan jornadas por predecir en la base de datos.")
+                await query.edit_message_text(text="No quedan jornadas por predecir en la base de datos.", reply_markup=get_nav_keyboard())
                 return
 
-            info = [f"📊 <b>Pronóstico Jornada {j_num}</b>\n"]
+            info = [f"📊 <b>Pronóstico Quiniela J{j_num} (15 Partidos)</b>\n"]
             for i, m in enumerate(matches, 1):
                 try:
                     p = ml.predict_match(m.elo_home or 1500, m.elo_away or 1500, m.xg_home or 1.2, m.xg_away or 0.9)
@@ -83,7 +86,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 p1 = int(p["1"]*100)
                 px = int(p["X"]*100)
                 p2 = int(p["2"]*100)
-                info.append(f"{i}. {m.home_team[:8]}-{m.away_team[:8]} ➡️ <b>{sign}</b> ({p1}%|{px}%|{p2}%)")
+                
+                label = f"<b>{sign}</b> ({p1}%|{px}%|{p2}%)"
+                if i == 15:
+                    # Pleno al 15: Predicción de goles exacta
+                    try:
+                        exact, prob = ml.predict_poisson_p15(m.xg_home or 1.2, m.xg_away or 0.9)
+                        label = f"✨ <b>P15: {exact}</b> ({int(prob*100)}%)"
+                    except: pass
+                
+                info.append(f"{i}. {m.home_team[:8]}-{m.away_team[:8]} ➡️ {label}")
             
             await query.edit_message_text(text="\n".join(info), reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:

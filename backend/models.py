@@ -29,6 +29,7 @@ class Match(Base):
     home_goals = Column(Integer)
     away_goals = Column(Integer)
     sign = Column(String(1)) # 1, X, 2
+    league_id = Column(Integer) # e.g., 564 (Primera), 384 (Segunda)
     
     # Statistical features
     elo_home = Column(Float)

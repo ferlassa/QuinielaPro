@@ -45,56 +45,62 @@ class QuinielaScraper:
         except Exception as e:
             print(f"Aviso API: {e}")
             
-        print("Scrapeando calendario real completo (Marca.com)...")
-        # 2. Scrapeo robusto directo del calendario Marca para los 380 partidos reales (jugados y por jugar)
+        print("Scrapeando calendarios reales (Marca.com)...")
+        # 2. Scrapeo robusto directo del calendario Marca
+        leagues = [
+            {"id": 564, "url": "https://www.marca.com/futbol/primera-division/calendario.html"},
+            {"id": 384, "url": "https://www.marca.com/futbol/segunda-division/calendario.html"}
+        ]
+        
         async with httpx.AsyncClient() as client:
             db.query(Match).delete()
             db.query(Jornada).delete()
             
-            res = await client.get("https://www.marca.com/futbol/primera-division/calendario.html")
-            res.encoding = 'iso-8859-15'
-            soup = BeautifulSoup(res.text, "html.parser")
-            
-            tables = soup.select('table')
-            if tables:
-                for idx, table in enumerate(tables):
-                    jornada_num = idx + 1
-                    jornada = Jornada(season_id=season.id, number=jornada_num, date=datetime.datetime.now() + datetime.timedelta(days=7*jornada_num))
-                    db.add(jornada)
-                    db.flush()
-                    
-                    for row in table.find_all('tr')[1:]:
-                        cols = row.find_all('td')
-                        if len(cols) >= 3:
-                            home = cols[0].text.strip()
-                            res_text = cols[1].text.strip()
-                            away = cols[2].text.strip()
-                            
-                            g_h = None
-                            g_a = None
-                            sign = None
-                            
-                            if "-" in res_text:
-                                try:
-                                    g_h_str, g_a_str = res_text.split("-")
-                                    g_h = int(g_h_str.strip())
-                                    g_a = int(g_a_str.strip())
-                                    sign = "1" if g_h > g_a else ("2" if g_a > g_h else "X")
-                                except:
-                                    pass
-                            
-                            match_obj = Match(
-                                jornada_id=jornada.id,
-                                home_team=home, away_team=away,
-                                home_goals=g_h, away_goals=g_a,
-                                sign=sign,
-                                elo_home=random.uniform(1450, 1900),
-                                elo_away=random.uniform(1450, 1900),
-                                xg_home=float(g_h) if g_h is not None else random.uniform(0.5, 2.5),
-                                xg_away=float(g_a) if g_a is not None else random.uniform(0.5, 2.5)
-                            )
-                            db.add(match_obj)
-                            real_matches_added += 1
+            for league in leagues:
+                print(f"Procesando liga ID {league['id']}...")
+                res = await client.get(league['url'])
+                res.encoding = 'iso-8859-15'
+                soup = BeautifulSoup(res.text, "html.parser")
+                
+                tables = soup.select('table')
+                if tables:
+                    for idx, table in enumerate(tables):
+                        jornada_num = idx + 1
+                        # Buscar si la jornada ya existe para esta temporada
+                        jornada = db.query(Jornada).filter(Jornada.season_id == season.id, Jornada.number == jornada_num).first()
+                        if not jornada:
+                            jornada = Jornada(season_id=season.id, number=jornada_num, date=datetime.datetime.now() + datetime.timedelta(days=7*jornada_num))
+                            db.add(jornada)
+                            db.flush()
+                        
+                        for row in table.find_all('tr')[1:]:
+                            cols = row.find_all('td')
+                            if len(cols) >= 3:
+                                home = cols[0].text.strip()
+                                res_text = cols[1].text.strip()
+                                away = cols[2].text.strip()
+                                
+                                g_h, g_a, sign = None, None, None
+                                if "-" in res_text:
+                                    try:
+                                        g_h_str, g_a_str = res_text.split("-")
+                                        g_h, g_a = int(g_h_str.strip()), int(g_a_str.strip())
+                                        sign = "1" if g_h > g_a else ("2" if g_a > g_h else "X")
+                                    except: pass
+                                
+                                match_obj = Match(
+                                    jornada_id=jornada.id,
+                                    league_id=league['id'],
+                                    home_team=home, away_team=away,
+                                    home_goals=g_h, away_goals=g_a,
+                                    sign=sign,
+                                    elo_home=random.uniform(1450, 1900),
+                                    elo_away=random.uniform(1450, 1900),
+                                    xg_home=float(g_h) if g_h is not None else random.uniform(0.5, 2.5),
+                                    xg_away=float(g_a) if g_a is not None else random.uniform(0.5, 2.5)
+                                )
+                                db.add(match_obj)
+                                real_matches_added += 1
 
         db.commit()
         print(f"Temporada {season_year} cargada con éxito ({real_matches_added} partidos reales).")
