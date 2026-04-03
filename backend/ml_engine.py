@@ -28,43 +28,69 @@ class MLEngine:
         data = []
         labels = []
         for m in matches:
-            # Reconstruct feature vector from JSON or fixed fields
-            # For demo, we create a synthetic vector: [goals_h, goals_a, elo_h, elo_a]
-            # In production, this would be a large multivariate array
+            # Filtro ultra-robusto: Solo partidos con resultado y datos ELO
+            if not m.sign or m.elo_home is None or m.elo_away is None:
+                continue
+            
+            # Asegurar que el signo sea un string válido
+            s = str(m.sign).strip().upper()
+            if s not in ["1", "X", "2"]:
+                continue
+                
             features = [
-                m.home_goals or 0, 
-                m.away_goals or 0,
-                m.elo_home or 1500,
-                m.elo_away or 1500,
-                m.xg_home or 1.0,
-                m.xg_away or 1.0
+                float(m.elo_home),
+                float(m.elo_away),
+                float(m.xg_home or 1.2),
+                float(m.xg_away or 0.9)
             ]
             data.append(features)
-            labels.append(m.sign)
+            labels.append(s)
             
         db.close()
-        return np.array(data), np.array(labels)
+        return np.array(data, dtype=float), np.array(labels, dtype=str)
 
     def train(self):
-        X, y = self.load_training_data()
-        if len(X) < 10:
-            print("Datos insuficientes para entrenar PCA/Logit de forma robusta.")
-            return
+        try:
+            X, y = self.load_training_data()
+            if len(X) < 10:
+                print("Datos insuficientes para entrenar PCA/Logit de forma robusta.")
+                return
+                
+            # Verificación extra de tipos para diagnosticar errores internos
+            if any(val is None for row in X for val in row):
+                print("ERROR: X contiene valores None")
+                return
+            if any(val is None for val in y):
+                print("ERROR: y contiene valores None")
+                return
+
+            # 1. Scaling
+            X_scaled = self.scaler.fit_transform(X)
             
-        # 1. Scaling
-        X_scaled = self.scaler.fit_transform(X)
-        
-        # 2. PCA
-        X_pca = self.pca.fit_transform(X_scaled)
-        print(f"PCA completado. Componentes que explican la varianza: {self.pca.n_components_}")
-        
-        # 3. Logistic Regression
-        self.model_1x2.fit(X_pca, y)
-        print("Modelo 1X2 entrenado satisfactoriamente.")
+            # 2. PCA
+            X_pca = self.pca.fit_transform(X_scaled)
+            print(f"PCA completado: {self.pca.n_components_} componentes.")
+            
+            # 3. Logistic Regression
+            self.model_1x2.fit(X_pca, y)
+            print("Modelo 1X2 entrenado satisfactoriamente.")
+        except Exception as e:
+            import traceback
+            err_msg = f"Fallo crítico en entrenamiento: {e}\n{traceback.format_exc()}"
+            print(err_msg)
+            # Guardar en log persistente para que Antigravity lo vea
+            with open("ml_crash.log", "w", encoding="utf-8") as f:
+                f.write(err_msg)
+            # Guardar en log de telemetría también
+            try:
+                with open("healer_alerts.log", "a", encoding="utf-8") as f:
+                    f.write(err_msg + "\n")
+            except: pass
+            raise e
 
     def predict_match(self, home_elo, away_elo, home_xg, away_xg):
-        # Prepare input
-        features = np.array([[0, 0, home_elo, away_elo, home_xg, away_xg]])
+        # Prepare input with the same feature structure as training: [ELOH, ELOA, XGH, XGA]
+        features = np.array([[home_elo, away_elo, home_xg, away_xg]])
         X_scaled = self.scaler.transform(features)
         X_pca = self.pca.transform(X_scaled)
         

@@ -103,7 +103,7 @@ async def init_data():
     scraper = QuinielaScraper(api_token="gbyw2CyWtND2QnrfUDtmdHi3i2iC5umjOp52JXF8oNiZwf835sOyBeKikTKu")
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-    await scraper.get_historical_season_real("2023-2024", db)
+    await scraper.get_historical_season_real("2026", db)
     db.close()
 
 if __name__ == "__main__":
