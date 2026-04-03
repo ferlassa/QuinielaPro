@@ -10,6 +10,24 @@ WEBHOOK_URL = "https://quinielapro-production.up.railway.app/telegram"
 
 bot_app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
+# --- Helpers de UI ---
+def get_main_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏆 Clasificación y Forma (8J)", callback_data='classification')],
+        [InlineKeyboardButton("📊 Predicción 1X2", callback_data='predict')],
+        [InlineKeyboardButton("🔄 Sincronizar Resultados", callback_data='sync_db')],
+        [InlineKeyboardButton("🛠️ Centro de Diagnóstico", callback_data='health_check')],
+        [InlineKeyboardButton("💰 Resumen Financiero", callback_data='financial')],
+        [InlineKeyboardButton("🧠 Evolución y Aprendizaje", callback_data='evolution')],
+        [InlineKeyboardButton("🌐 Ver App en la Nube", url="https://quiniela-pro-taupe.vercel.app")]
+    ])
+
+def get_nav_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Volver al Menú", callback_data='main_menu'),
+         InlineKeyboardButton("🌐 Abrir Web App", url="https://quiniela-pro-taupe.vercel.app")]
+    ])
+
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mando principal del bot con teclado premium."""
     keyboard = [
@@ -62,9 +80,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     else: p = {"1":0.4, "X":0.3, "2":0.3}
                 
                 sign = max(p, key=p.get)
-                info.append(f"{i}. {m.home_team[:10]}-{m.away_team[:10]} ➡️ <b>{sign}</b>")
+                p1 = int(p["1"]*100)
+                px = int(p["X"]*100)
+                p2 = int(p["2"]*100)
+                info.append(f"{i}. {m.home_team[:8]}-{m.away_team[:8]} ➡️ <b>{sign}</b> ({p1}%|{px}%|{p2}%)")
             
-            await query.edit_message_text(text="\n".join(info), parse_mode="HTML")
+            await query.edit_message_text(text="\n".join(info), reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             import traceback
             open("healer_alerts.log", "a", encoding="utf-8").write(f"PREDICT ERROR: {e}\n{traceback.format_exc()}\n")
@@ -76,7 +97,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from main import calcular_roi
             r10 = calcular_roi(10)
             roi = round(r10.get("roi_%", 0), 1) if isinstance(r10, dict) else 0
-            await query.edit_message_text(text=f"💰 <b>ROI Actual (10J):</b> {roi}%", parse_mode="HTML")
+            await query.edit_message_text(text=f"💰 <b>ROI Actual (10J):</b> {roi}%", reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error finanzas: {e}")
 
@@ -98,8 +119,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ranking = sorted(stats.items(), key=lambda x: x[1]["pts"], reverse=True)
             res = [f"🏆 <b>Top 10 Liga Real</b>\n"]
             for i, (name, s) in enumerate(ranking[:10], 1):
-                res.append(f"{i}. {name[:12]}: {s['pts']} pts [{''.join(s['f'][-5:])}]")
-            await query.edit_message_text(text="\n".join(res), parse_mode="HTML")
+                res.append(f"{i}. {name[:12]}: {s['pts']} pts [{' '.join(s['f'][-5:])}]")
+            await query.edit_message_text(text="\n".join(res), reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error tabla: {e}")
 
@@ -115,7 +136,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.close()
             # Retraining is part of healing
             ml.train()
-            await query.edit_message_text(text="✅ <b>Sincronización OK</b>", parse_mode="HTML")
+            await query.edit_message_text(text="✅ <b>Sincronización OK</b>\nResultados actualizados y motor re-entrenado.", reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             import traceback
             open("healer_alerts.log", "a", encoding="utf-8").write(f"SYNC ERROR: {e}\n{traceback.format_exc()}\n")
@@ -136,7 +157,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 ml.train()
                 msg += "ML: 🛠️ RE-ENTRENADO"
-            await query.edit_message_text(text=msg, parse_mode="HTML")
+            await query.edit_message_text(text=msg, reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             await query.edit_message_text(text=f"Error Salud: {e}")
 
@@ -147,10 +168,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import traceback
             await query.edit_message_text(text="🧠 <i>Optimizando motor...</i>", parse_mode="HTML")
             ml.train()
-            await query.edit_message_text(text="✅ <b>Motor IA Optimizado</b>", parse_mode="HTML")
+            await query.edit_message_text(text="✅ <b>Motor IA Optimizado</b>", reply_markup=get_nav_keyboard(), parse_mode="HTML")
         except Exception as e:
             tb = traceback.format_exc()
             await query.edit_message_text(text=f"🆘 <b>Error Crítico:</b> {e}\n<pre>{tb[-500:]}</pre>", parse_mode="HTML")
+
+    elif query.data == 'main_menu':
+        await start_cmd(update, context)
 
 bot_app.add_handler(CommandHandler('start', start_cmd))
 bot_app.add_handler(CallbackQueryHandler(button_handler))
