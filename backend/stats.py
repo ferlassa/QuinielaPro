@@ -79,10 +79,10 @@ class xGManager:
         # Base xG if no data
         def_val = 1.2
         
-        h_scored = np.mean(self.stats.get(home_team, {}).get("scored", [def_val]))
-        h_conceded = np.mean(self.stats.get(home_team, {}).get("conceded", [def_val]))
-        a_scored = np.mean(self.stats.get(away_team, {}).get("scored", [def_val]))
-        a_conceded = np.mean(self.stats.get(away_team, {}).get("conceded", [def_val]))
+        h_scored = float(np.mean(self.stats.get(home_team, {}).get("scored", [def_val])))
+        h_conceded = float(np.mean(self.stats.get(home_team, {}).get("conceded", [def_val])))
+        a_scored = float(np.mean(self.stats.get(away_team, {}).get("scored", [def_val])))
+        a_conceded = float(np.mean(self.stats.get(away_team, {}).get("conceded", [def_val])))
 
         # Home team offensive strength vs Away team defensive weakness
         xg_h = (h_scored + a_conceded) / 2
@@ -90,4 +90,4 @@ class xGManager:
         xg_a = (a_scored + h_conceded) / 2
 
         # Adjust for home advantage (approx +15%)
-        return xg_h * 1.1, xg_a * 0.9
+        return float(xg_h * 1.1), float(xg_a * 0.9)

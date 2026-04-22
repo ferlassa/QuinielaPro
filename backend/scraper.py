@@ -340,11 +340,17 @@ class QuinielaScraper:
         db.commit()
         print(f"Temporada {season_year} cargada con éxito ({real_matches_added} partidos reales).")
 
-        db.commit()
-        print(f"Temporada {season_year} cargada con éxito ({real_matches_added} partidos reales).")
-
 async def init_data():
     fix_db_schema() # Ejecutar migración antes de nada
+    # Forzar el esquema público si es PostgreSQL para evitar errores de schema
+    from sqlalchemy import text
+    try:
+        db_init = SessionLocal()
+        db_init.execute(text("SET search_path TO public"))
+        db_init.commit()
+        db_init.close()
+    except: pass
+    
     scraper = QuinielaScraper(api_token="gbyw2CyWtND2QnrfUDtmdHi3i2iC5umjOp52JXF8oNiZwf835sOyBeKikTKu")
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
