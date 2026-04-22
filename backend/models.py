@@ -1,9 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 import datetime
-
-Base = declarative_base()
+from database import Base
 
 class Season(Base):
     __tablename__ = 'seasons'

@@ -2,23 +2,23 @@ import os
 import asyncio
 import httpx
 from bs4 import BeautifulSoup
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from models import Base, Season, Jornada, Match
+from database import SessionLocal, engine, Base
+from models import Season, Jornada, Match
 import datetime
 import random
 from stats import EloManager, xGManager
-
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./quiniela.db")
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def fix_db_schema():
     """Añade columnas necesarias si no existen (Migración automática)"""
     from sqlalchemy import text
     db = SessionLocal()
+    
+    # Asegurar esquema público si es PostgreSQL
+    if "postgresql" in str(engine.url):
+        try:
+            db.execute(text("SET search_path TO public"))
+            db.commit()
+        except: pass
     columns = [
         ("league_id", "INTEGER"),
         ("pool_prob_1", "FLOAT"), ("pool_prob_x", "FLOAT"), ("pool_prob_2", "FLOAT"),
@@ -341,18 +341,9 @@ class QuinielaScraper:
         print(f"Temporada {season_year} cargada con éxito ({real_matches_added} partidos reales).")
 
 async def init_data():
-    fix_db_schema() # Ejecutar migración antes de nada
-    # Forzar el esquema público si es PostgreSQL para evitar errores de schema
-    from sqlalchemy import text
-    try:
-        db_init = SessionLocal()
-        db_init.execute(text("SET search_path TO public"))
-        db_init.commit()
-        db_init.close()
-    except: pass
-    
+    from database import init_db
+    init_db()
     scraper = QuinielaScraper(api_token="gbyw2CyWtND2QnrfUDtmdHi3i2iC5umjOp52JXF8oNiZwf835sOyBeKikTKu")
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     await scraper.get_historical_season_real("2026", db)
     db.close()

@@ -32,18 +32,7 @@ from optimizer import (
 )
 from financial import expected_value, kelly_criterion, ROIBacktester
 from models import Match, Jornada, Season
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-import os
-
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./quiniela.db")
-# Railway PostgreSQL uses postgres:// but SQLAlchemy needs postgresql://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine_db = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine_db)
+from database import SessionLocal, init_db, engine
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
@@ -102,6 +91,7 @@ async def startup_event():
     def background_init():
         import asyncio as _aio
         try:
+            init_db()
             _aio.run(init_data())
             print("BD inicializada.")
         except Exception as e:

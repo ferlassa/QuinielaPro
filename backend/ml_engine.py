@@ -1,19 +1,12 @@
 import os
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from database import SessionLocal
 from models import Match, Jornada
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from scipy.stats import poisson
-
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./quiniela.db")
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
 
 class MLEngine:
     def __init__(self, n_components=0.75):
