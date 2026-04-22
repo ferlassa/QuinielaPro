@@ -212,6 +212,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 p = ml.predict_match(m.elo_home, m.elo_away, m.xg_home, m.xg_away)
                 p['home'] = m.home_team
                 p['away'] = m.away_team
+                # Pasar datos Losilla para el optimizador
+                p['pool_prob_1'] = m.pool_prob_1
+                p['pool_prob_x'] = m.pool_prob_x
+                p['pool_prob_2'] = m.pool_prob_2
+                p['tech_prob_1'] = m.tech_prob_1
+                p['tech_prob_x'] = m.tech_prob_x
+                p['tech_prob_2'] = m.tech_prob_2
                 preds.append(p)
 
             strategies = propose_strategies(preds)
@@ -242,6 +249,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 p = ml.predict_match(m.elo_home, m.elo_away, m.xg_home, m.xg_away)
                 p['home'] = m.home_team
                 p['away'] = m.away_team
+                # Pasar datos Losilla
+                p['pool_prob_1'] = m.pool_prob_1
+                p['pool_prob_x'] = m.pool_prob_x
+                p['pool_prob_2'] = m.pool_prob_2
+                p['tech_prob_1'] = m.tech_prob_1
+                p['tech_prob_x'] = m.tech_prob_x
+                p['tech_prob_2'] = m.tech_prob_2
                 preds.append(p)
 
             strategies = propose_strategies(preds)

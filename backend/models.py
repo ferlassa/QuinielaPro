@@ -37,8 +37,16 @@ class Match(Base):
     xg_home = Column(Float)
     xg_away = Column(Float)
     
+    # Losilla Method Data
+    pool_prob_1 = Column(Float)
+    pool_prob_x = Column(Float)
+    pool_prob_2 = Column(Float)
+    tech_prob_1 = Column(Float)
+    tech_prob_x = Column(Float)
+    tech_prob_2 = Column(Float)
+    
     # Raw features for PCA
-    features = Column(JSON) # Store dynamic multivariate data
+    features = Column(JSON)
     
     jornada = relationship("Jornada", back_populates="matches")
 

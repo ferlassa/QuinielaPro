@@ -214,10 +214,26 @@ def propose_strategies(predictions: List[dict]):
     # R1: 4 Triples (81 apuestas) -> 40.5€
     cols_r1 = generate_columns_from_reduction(ordered_preds, "R1")
 
+    # 4. Losilla: Basado en Rentabilidad (P_Tec / P_Apostada)
+    # Buscamos signos donde la probabilidad real es mayor que la que apuesta la masa.
+    losilla_preds = []
+    for m in predictions[:14]:
+        # Si tenemos los datos del pool y tech (pueden venir en el objeto m)
+        p1 = m.get('tech_prob_1', 0.33) / (m.get('pool_prob_1', 0.1) or 0.1)
+        px = m.get('tech_prob_x', 0.33) / (m.get('pool_prob_x', 0.1) or 0.1)
+        p2 = m.get('tech_prob_2', 0.33) / (m.get('pool_prob_2', 0.1) or 0.1)
+        
+        # Ordenamos por rentabilidad descendente
+        rent_signs = sorted([('1', p1), ('X', px), ('2', p2)], key=lambda x: x[1], reverse=True)
+        losilla_preds.append((f"{m['home']}-{m['away']}", [s[0] for s in rent_signs]))
+
+    cols_losilla = generate_columns_from_reduction(losilla_preds, "R2") # Usamos R2 por defecto
+
     return [
         {"id": 1, "name": "🛡️ Conservadora (R6)", "desc": "6 Dobles. Ideal para asegurar premios menores.", "cost": 32.0, "cols": cols_r6},
         {"id": 2, "name": "⚖️ Equilibrada (R2)", "desc": "3 Triples + 2 Dobles. Balance entre coste y riesgo.", "cost": 54.0, "cols": cols_r2},
-        {"id": 3, "name": "🔥 Agresiva (R1)", "desc": "4 Triples. Máxima cobertura ante sorpresas.", "cost": 40.5, "cols": cols_r1}
+        {"id": 3, "name": "🔥 Agresiva (R1)", "desc": "4 Triples. Máxima cobertura ante sorpresas.", "cost": 40.5, "cols": cols_r1},
+        {"id": 4, "name": "🎩 Método Losilla (Valor)", "desc": "Busca rentabilidad. Evita lo obvio si está sobreapostado.", "cost": 54.0, "cols": cols_losilla}
     ]
 
 
